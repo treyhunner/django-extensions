@@ -45,6 +45,7 @@ class AutoSlugField(SlugField):
         self.separator = kwargs.pop('separator',  u'-')
         self.overwrite = kwargs.pop('overwrite', False)
         self.allow_duplicates = kwargs.pop('allow_duplicates', False)
+        self.reserved_slugs = kwargs.pop('reserved_slugs', [])
         super(AutoSlugField, self).__init__(*args, **kwargs)
 
     def _slug_strip(self, value):
@@ -92,9 +93,6 @@ class AutoSlugField(SlugField):
         slug = self._slug_strip(slug)
         original_slug = slug
 
-        if self.allow_duplicates:
-            return slug
-
         # exclude the current model instance from the queryset used in finding
         # the next valid slug
         queryset = model_instance.__class__._default_manager.all()
@@ -111,7 +109,8 @@ class AutoSlugField(SlugField):
 
         # increases the number while searching for the next valid slug
         # depending on the given slug, clean-up
-        while not slug or queryset.filter(**kwargs):
+        while (not slug or slug in self.reserved_slugs or
+            (not self.allow_duplicates and queryset.filter(**kwargs))):
             slug = original_slug
             end = '%s%s' % (self.separator, next)
             end_len = len(end)
